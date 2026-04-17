@@ -1,0 +1,32 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+
+# IDE - Eclipse
+.metadata/
+.project
+.classpath
+.settings/
+
+# IDE - IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+
+# Build
+build/
+
+# Node (if frontend later)
+node_modules/
