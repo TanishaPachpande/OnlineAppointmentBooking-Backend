@@ -12,16 +12,8 @@ spring:
           uri: lb://AUTH-SERVICE
           predicates:
             - Path=/auth/**
-          filters:
-            - StripPrefix=1
-
-  main:
-    web-application-type: reactive
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
-
-  instance:
-    prefer-ip-address: true
