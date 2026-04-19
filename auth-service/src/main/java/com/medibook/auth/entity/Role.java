@@ -1,8 +1,7 @@
 package com.medibook.auth.entity;
 
-
 public enum Role {
-    USER,
+    PATIENT,
     PROVIDER,
     ADMIN
 }

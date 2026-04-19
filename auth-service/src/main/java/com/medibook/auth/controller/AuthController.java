@@ -1,39 +1,58 @@
 package com.medibook.auth.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import com.medibook.auth.dto.*;
+import com.medibook.auth.service.AuthService;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.medibook.auth.entity.User;
-import com.medibook.auth.service.AuthService;
-
-import jakarta.validation.Valid;
-
 @RestController
 @RequestMapping("/auth")
+@Slf4j
+@Tag(name = "Auth Controller", description = "APIs for registration, login and user management")
 public class AuthController {
 
-    @Autowired
-    private AuthService service;
-    
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
     @GetMapping("/test")
-    public String test() {
-        return "Auth working";
+    public ResponseEntity<String> test() {
+        return ResponseEntity.ok("Auth working");
     }
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(@Valid @RequestBody User user) {
-        return ResponseEntity.ok(service.register(user));
+    public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequestDto requestDto) {
+        log.info("Received registration request");
+        return ResponseEntity.ok(authService.register(requestDto));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody User user) {
-        User dbUser = service.findByEmail(user.getEmail());
+    public ResponseEntity<AuthResponseDto> login(@Valid @RequestBody LoginRequestDto requestDto) {
+        log.info("Received login request");
+        return ResponseEntity.ok(authService.login(requestDto));
+    }
 
-        if (!dbUser.getPassword().equals(user.getPassword())) {
-            throw new RuntimeException("Invalid email or password");
-        }
+    @GetMapping("/profile/email/{email}")
+    public ResponseEntity<AuthResponseDto> getByEmail(@PathVariable String email) {
+        return ResponseEntity.ok(authService.getUserByEmail(email));
+    }
 
-        return ResponseEntity.ok("Login successful");
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<AuthResponseDto> getById(@PathVariable Long userId) {
+        return ResponseEntity.ok(authService.getUserById(userId));
+    }
+
+    @PutMapping("/deactivate/{userId}")
+    public ResponseEntity<ApiResponseDto> deactivate(@PathVariable Long userId) {
+        return ResponseEntity.ok(
+                ApiResponseDto.builder()
+                        .message(authService.deactivateAccount(userId))
+                        .build()
+        );
     }
 }

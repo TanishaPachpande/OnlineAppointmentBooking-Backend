@@ -2,21 +2,35 @@ server:
   port: 8082
 
 spring:
-    datasource:
-      url: jdbc:mysql://localhost:3306/auth_db
-      username: root
-      password: mysql@123
+  application:
+    name: AUTH-SERVICE
 
-    jpa:
-      hibernate:
-        ddl-auto: update
-    application:
-      name: AUTH-SERVICE
+  datasource:
+    url: jdbc:mysql://localhost:3306/auth_db
+    username: root
+    password: mysql@123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
-
   instance:
     prefer-ip-address: true
+
+app:
+  jwt:
+    secret: ThisIsAVeryStrongSecretKeyForJwtTokenGeneration123456
+    expiration: 86400000
+
+logging:
+  file:
+    name: logs/auth-service.log
+  level:
+    org.springframework.security: INFO
+    com.medibook.auth: DEBUG

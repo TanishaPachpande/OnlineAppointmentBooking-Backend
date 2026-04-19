@@ -1,23 +1,18 @@
 package com.medibook.auth.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import com.medibook.auth.dto.AuthResponseDto;
+import com.medibook.auth.dto.LoginRequestDto;
+import com.medibook.auth.dto.RegisterRequestDto;
 
-import com.medibook.auth.entity.User;
-import com.medibook.auth.repository.UserRepository;
+public interface AuthService {
 
-@Service
-public class AuthService {
+    AuthResponseDto register(RegisterRequestDto requestDto);
 
-    @Autowired
-    private UserRepository repo;
+    AuthResponseDto login(LoginRequestDto requestDto);
 
-    public User register(User user) {
-        return repo.save(user);
-    }
+    AuthResponseDto getUserByEmail(String email);
 
-    public User findByEmail(String email) {
-        return repo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
+    AuthResponseDto getUserById(Long userId);
+
+    String deactivateAccount(Long userId);
 }
