@@ -1,0 +1,30 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: REVIEW-SERVICE
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/review_db
+    username: root
+    password: mysql@123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+logging:
+  file:
+    name: logs/review-service.log
+  level:
+    com.medibook.review: DEBUG
