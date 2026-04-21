@@ -1,17 +1,12 @@
 server:
-  port: 8085
+  port: 8088
 
 spring:
   application:
-    name: APPOINTMENT-SERVICE
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    name: NOTIFICATION-SERVICE
 
   datasource:
-    url: jdbc:mysql://localhost:3306/appointment_db
+    url: jdbc:mysql://localhost:3306/notification_db
     username: root
     password: mysql@123
 
@@ -20,6 +15,12 @@ spring:
       ddl-auto: update
     show-sql: true
     open-in-view: false
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
 
 eureka:
   client:
@@ -30,6 +31,6 @@ eureka:
 
 logging:
   file:
-    name: logs/appointment-service.log
+    name: logs/notification-service.log
   level:
-    com.medibook.appointment: DEBUG
+    com.medibook.notification: DEBUG

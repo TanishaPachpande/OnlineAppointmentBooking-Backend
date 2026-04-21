@@ -5,10 +5,12 @@ import com.medibook.appointment.dto.*;
 import com.medibook.appointment.entity.*;
 import com.medibook.appointment.exception.BusinessException;
 import com.medibook.appointment.exception.ResourceNotFoundException;
+import com.medibook.appointment.messaging.NotificationProducer;
 import com.medibook.appointment.repository.AppointmentRepository;
 import com.medibook.appointment.service.AppointmentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,11 +21,14 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final ScheduleClient scheduleClient;
+    private final NotificationProducer notificationProducer;
 
     public AppointmentServiceImpl(AppointmentRepository appointmentRepository,
-                                  ScheduleClient scheduleClient) {
+                                  ScheduleClient scheduleClient,
+                                  NotificationProducer notificationProducer) {
         this.appointmentRepository = appointmentRepository;
         this.scheduleClient = scheduleClient;
+        this.notificationProducer = notificationProducer;
     }
 
     @Override
@@ -65,7 +70,16 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment booked successfully with appointmentId={}", savedAppointment.getAppointmentId());
+        NotificationEventDto eventDto = NotificationEventDto.builder()
+                .userId(savedAppointment.getPatientId())
+                .recipient("patient@gmail.com")
+                .type("EMAIL")
+                .subject("Appointment Booked")
+                .message("Your appointment has been booked successfully for "
+                        + savedAppointment.getAppointmentDate() + " at " + savedAppointment.getStartTime())
+                .build();
 
+        notificationProducer.publishNotification(eventDto);
         return mapToResponse(savedAppointment);
     }
 
@@ -136,7 +150,15 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment saved = appointmentRepository.save(appointment);
 
         scheduleClient.unblockSlot(appointment.getSlotId());
+        NotificationEventDto eventDto = NotificationEventDto.builder()
+                .userId(saved.getPatientId())
+                .recipient("patient@gmail.com")
+                .type("EMAIL")
+                .subject("Appointment Cancelled")
+                .message("Your appointment with id " + saved.getAppointmentId() + " has been cancelled.")
+                .build();
 
+        notificationProducer.publishNotification(eventDto);
         log.info("Appointment cancelled successfully for appointmentId={}", appointmentId);
         return mapToResponse(saved);
     }
@@ -179,7 +201,16 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Appointment rescheduled successfully for appointmentId={}", appointmentId);
+        NotificationEventDto eventDto = NotificationEventDto.builder()
+                .userId(saved.getPatientId())
+                .recipient("patient@gmail.com")
+                .type("EMAIL")
+                .subject("Appointment Rescheduled")
+                .message("Your appointment has been rescheduled to "
+                        + saved.getAppointmentDate() + " at " + saved.getStartTime())
+                .build();
 
+        notificationProducer.publishNotification(eventDto);
         return mapToResponse(saved);
     }
 

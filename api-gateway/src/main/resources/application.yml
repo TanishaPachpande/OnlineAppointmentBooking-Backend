@@ -32,6 +32,10 @@ spring:
           uri: lb://REVIEW-SERVICE
           predicates:
             - Path=/reviews/**
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/notifications/**
 
 eureka:
   client:

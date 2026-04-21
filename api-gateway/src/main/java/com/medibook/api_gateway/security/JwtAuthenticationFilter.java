@@ -108,7 +108,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 || path.startsWith("/slots")
                 || path.startsWith("/appointments/provider")
                 || path.startsWith("/appointments/")
-                || path.startsWith("/payments");
+                || path.startsWith("/payments")
+                || path.startsWith("/notifications");
     }
 
     private boolean isPatientAllowed(String path, HttpMethod method) {
@@ -116,7 +117,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 || (path.startsWith("/providers") && method == HttpMethod.GET)
                 || path.startsWith("/slots/available")
                 || path.startsWith("/appointments")
-                || path.startsWith("/payments");
+                || path.startsWith("/payments")
+                || path.startsWith("/reviews")
+                || path.startsWith("/notifications");
     }
 
     @Override
