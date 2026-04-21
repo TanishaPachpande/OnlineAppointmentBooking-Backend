@@ -1,5 +1,6 @@
 package com.medibook.payment.service;
 
+import com.medibook.payment.dto.NotificationMessage;
 import com.medibook.payment.dto.PaymentRequestDto;
 import com.medibook.payment.dto.PaymentResponseDto;
 import com.medibook.payment.dto.RefundRequestDto;
@@ -11,12 +12,15 @@ import com.medibook.payment.repository.PaymentRepository;
 import com.medibook.payment.service.impl.PaymentServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -24,6 +28,9 @@ class PaymentServiceImplTest {
 
     @Mock
     private PaymentRepository paymentRepository;
+
+    @Mock
+    private RabbitTemplate rabbitTemplate;
 
     @InjectMocks
     private PaymentServiceImpl paymentService;
@@ -58,6 +65,12 @@ class PaymentServiceImplTest {
         assertNotNull(response);
         assertEquals(PaymentStatus.SUCCESS, response.getStatus());
         assertEquals(500.0, response.getAmount());
+        assertEquals("TXN_123456", response.getTransactionId());
+
+        verify(paymentRepository, times(1)).findByAppointmentId(1L);
+        verify(paymentRepository, times(1)).save(any(Payment.class));
+        verify(rabbitTemplate, times(1))
+                .convertAndSend(anyString(), anyString(), any(NotificationMessage.class));
     }
 
     @Test
@@ -76,7 +89,17 @@ class PaymentServiceImplTest {
 
         when(paymentRepository.findByAppointmentId(1L)).thenReturn(Optional.of(existingPayment));
 
-        assertThrows(BusinessException.class, () -> paymentService.processPayment(requestDto));
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> paymentService.processPayment(requestDto)
+        );
+
+        assertEquals("Payment already exists for this appointment", exception.getMessage());
+
+        verify(paymentRepository, times(1)).findByAppointmentId(1L);
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(rabbitTemplate, never())
+                .convertAndSend(anyString(), anyString(), any(NotificationMessage.class));
     }
 
     @Test
@@ -113,7 +136,40 @@ class PaymentServiceImplTest {
 
         PaymentResponseDto response = paymentService.refundPayment(1L, refundRequestDto);
 
+        assertNotNull(response);
         assertEquals(PaymentStatus.REFUNDED, response.getStatus());
         assertEquals("Appointment cancelled", response.getNotes());
+        assertEquals(500.0, response.getAmount());
+
+        verify(paymentRepository, times(1)).findById(1L);
+        verify(paymentRepository, times(1)).save(any(Payment.class));
+        verify(rabbitTemplate, times(1))
+                .convertAndSend(anyString(), anyString(), any(NotificationMessage.class));
+    }
+
+    @Test
+    void refundPayment_ShouldThrowException_WhenPaymentAlreadyRefunded() {
+        Payment payment = Payment.builder()
+                .paymentId(1L)
+                .status(PaymentStatus.REFUNDED)
+                .build();
+
+        RefundRequestDto refundRequestDto = RefundRequestDto.builder()
+                .reason("Duplicate refund request")
+                .build();
+
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> paymentService.refundPayment(1L, refundRequestDto)
+        );
+
+        assertEquals("Payment is already refunded", exception.getMessage());
+
+        verify(paymentRepository, times(1)).findById(1L);
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(rabbitTemplate, never())
+                .convertAndSend(anyString(), anyString(), any(NotificationMessage.class));
     }
 }

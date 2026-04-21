@@ -1,17 +1,12 @@
 server:
-  port: 8086
+  port: 8089
 
 spring:
   application:
-    name: PAYMENT-SERVICE
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    name: RECORD-SERVICE
 
   datasource:
-    url: jdbc:mysql://localhost:3306/payment_db
+    url: jdbc:mysql://localhost:3306/record_db
     username: root
     password: mysql@123
 
@@ -30,7 +25,6 @@ eureka:
 
 logging:
   file:
-    name: logs/payment-service.log
+    name: logs/record-service.log
   level:
-    com.medibook.payment: DEBUG
-
+    com.medibook.record: DEBUG

@@ -1,12 +1,18 @@
 package com.medibook.payment.service.impl;
 
-import com.medibook.payment.dto.*;
-import com.medibook.payment.entity.*;
+import com.medibook.payment.config.RabbitMQConfig;
+import com.medibook.payment.dto.NotificationMessage;
+import com.medibook.payment.dto.PaymentRequestDto;
+import com.medibook.payment.dto.PaymentResponseDto;
+import com.medibook.payment.dto.RefundRequestDto;
+import com.medibook.payment.entity.Payment;
+import com.medibook.payment.entity.PaymentStatus;
 import com.medibook.payment.exception.BusinessException;
 import com.medibook.payment.exception.ResourceNotFoundException;
 import com.medibook.payment.repository.PaymentRepository;
 import com.medibook.payment.service.PaymentService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,9 +23,11 @@ import java.util.List;
 public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final RabbitTemplate rabbitTemplate;
 
-    public PaymentServiceImpl(PaymentRepository paymentRepository) {
-        this.paymentRepository = paymentRepository;
+    public PaymentServiceImpl(PaymentRepository repo, RabbitTemplate rabbitTemplate) {
+        this.paymentRepository = repo;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Override
@@ -47,6 +55,19 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
 
         Payment savedPayment = paymentRepository.save(payment);
+
+        NotificationMessage notificationMessage = NotificationMessage.builder()
+                .userId(savedPayment.getPatientId())
+                .email(null)
+                .message("Payment successful for appointmentId=" + savedPayment.getAppointmentId()
+                        + ", transactionId=" + savedPayment.getTransactionId())
+                .build();
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE,
+                RabbitMQConfig.ROUTING_KEY,
+                notificationMessage
+        );
 
         log.info("Payment successful. paymentId={}, transactionId={}",
                 savedPayment.getPaymentId(), savedPayment.getTransactionId());
@@ -115,6 +136,19 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setNotes(requestDto.getReason());
 
         Payment savedPayment = paymentRepository.save(payment);
+
+        NotificationMessage notificationMessage = NotificationMessage.builder()
+                .userId(savedPayment.getPatientId())
+                .email(null)
+                .message("Payment refunded successfully for paymentId=" + savedPayment.getPaymentId()
+                        + ", transactionId=" + savedPayment.getTransactionId())
+                .build();
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE,
+                RabbitMQConfig.ROUTING_KEY,
+                notificationMessage
+        );
 
         log.info("Refund successful for paymentId={}, transactionId={}",
                 savedPayment.getPaymentId(), savedPayment.getTransactionId());

@@ -1,14 +1,22 @@
 package com.medibook.appointment.service;
 
 import com.medibook.appointment.client.ScheduleClient;
-import com.medibook.appointment.dto.*;
-import com.medibook.appointment.entity.*;
+import com.medibook.appointment.dto.BookAppointmentRequestDto;
+import com.medibook.appointment.dto.AppointmentResponseDto;
+import com.medibook.appointment.dto.RescheduleAppointmentRequestDto;
+import com.medibook.appointment.dto.SlotResponseDto;
+import com.medibook.appointment.entity.Appointment;
+import com.medibook.appointment.entity.AppointmentStatus;
+import com.medibook.appointment.entity.ConsultationMode;
 import com.medibook.appointment.exception.BusinessException;
+import com.medibook.appointment.messaging.NotificationProducer;
 import com.medibook.appointment.repository.AppointmentRepository;
 import com.medibook.appointment.service.impl.AppointmentServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
@@ -26,6 +34,9 @@ class AppointmentServiceImplTest {
 
     @Mock
     private ScheduleClient scheduleClient;
+
+    @Mock
+    private NotificationProducer notificationProducer;
 
     @InjectMocks
     private AppointmentServiceImpl appointmentService;
@@ -47,6 +58,7 @@ class AppointmentServiceImplTest {
                 .date(LocalDate.now())
                 .startTime(LocalTime.of(10, 0))
                 .endTime(LocalTime.of(10, 30))
+                .durationMinutes(30)
                 .isBooked(false)
                 .isBlocked(false)
                 .build();
@@ -76,6 +88,7 @@ class AppointmentServiceImplTest {
 
         verify(scheduleClient, times(1)).bookSlot(10L);
         verify(appointmentRepository, times(1)).save(any(Appointment.class));
+        verify(notificationProducer, times(1)).publishNotification(ArgumentMatchers.any());
     }
 
     @Test
@@ -106,12 +119,14 @@ class AppointmentServiceImplTest {
     void cancelAppointment_ShouldCancelSuccessfully() {
         Appointment appointment = Appointment.builder()
                 .appointmentId(1L)
+                .patientId(101L)
                 .slotId(10L)
                 .status(AppointmentStatus.SCHEDULED)
                 .build();
 
         Appointment cancelledAppointment = Appointment.builder()
                 .appointmentId(1L)
+                .patientId(101L)
                 .slotId(10L)
                 .status(AppointmentStatus.CANCELLED)
                 .build();
@@ -123,5 +138,50 @@ class AppointmentServiceImplTest {
 
         assertEquals(AppointmentStatus.CANCELLED, response.getStatus());
         verify(scheduleClient, times(1)).unblockSlot(10L);
+        verify(notificationProducer, times(1)).publishNotification(any());
+    }
+
+    @Test
+    void rescheduleAppointment_ShouldRescheduleSuccessfully() {
+        Appointment appointment = Appointment.builder()
+                .appointmentId(1L)
+                .patientId(101L)
+                .slotId(10L)
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        RescheduleAppointmentRequestDto requestDto = RescheduleAppointmentRequestDto.builder()
+                .newSlotId(20L)
+                .build();
+
+        SlotResponseDto newSlot = SlotResponseDto.builder()
+                .slotId(20L)
+                .date(LocalDate.now().plusDays(1))
+                .startTime(LocalTime.of(11, 0))
+                .endTime(LocalTime.of(11, 30))
+                .isBooked(false)
+                .isBlocked(false)
+                .build();
+
+        Appointment updatedAppointment = Appointment.builder()
+                .appointmentId(1L)
+                .patientId(101L)
+                .slotId(20L)
+                .appointmentDate(newSlot.getDate())
+                .startTime(newSlot.getStartTime())
+                .endTime(newSlot.getEndTime())
+                .status(AppointmentStatus.SCHEDULED)
+                .build();
+
+        when(appointmentRepository.findById(1L)).thenReturn(Optional.of(appointment));
+        when(scheduleClient.getSlotById(20L)).thenReturn(newSlot);
+        when(appointmentRepository.save(any(Appointment.class))).thenReturn(updatedAppointment);
+
+        AppointmentResponseDto response = appointmentService.rescheduleAppointment(1L, requestDto);
+
+        assertEquals(20L, response.getSlotId());
+        verify(scheduleClient).bookSlot(20L);
+        verify(scheduleClient).unblockSlot(10L);
+        verify(notificationProducer).publishNotification(any());
     }
 }
