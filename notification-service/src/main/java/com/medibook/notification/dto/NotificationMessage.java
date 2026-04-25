@@ -10,6 +10,6 @@ import lombok.*;
 public class NotificationMessage {
 
     private Long userId;
-    private String email;
+    private String recipient;
     private String message;
 }

@@ -1,9 +1,14 @@
 package com.medibook.notification.service.impl;
 
-import com.medibook.notification.dto.*;
-import com.medibook.notification.entity.*;
+import com.medibook.notification.dto.NotificationEventDto;
+import com.medibook.notification.dto.NotificationRequestDto;
+import com.medibook.notification.dto.NotificationResponseDto;
+import com.medibook.notification.entity.Notification;
+import com.medibook.notification.entity.NotificationStatus;
+import com.medibook.notification.entity.NotificationType;
 import com.medibook.notification.exception.ResourceNotFoundException;
 import com.medibook.notification.repository.NotificationRepository;
+import com.medibook.notification.service.EmailService;
 import com.medibook.notification.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,14 +21,18 @@ import java.util.List;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final EmailService emailService;
 
-    public NotificationServiceImpl(NotificationRepository notificationRepository) {
+    public NotificationServiceImpl(NotificationRepository notificationRepository,
+                                   EmailService emailService) {
         this.notificationRepository = notificationRepository;
+        this.emailService = emailService;
     }
 
     @Override
     public NotificationResponseDto createAndSendNotification(NotificationRequestDto requestDto) {
-        log.info("Creating notification for userId={} recipient={}", requestDto.getUserId(), requestDto.getRecipient());
+        log.info("Creating notification for userId={} recipient={}",
+                requestDto.getUserId(), requestDto.getRecipient());
 
         Notification notification = Notification.builder()
                 .userId(requestDto.getUserId())
@@ -31,13 +40,30 @@ public class NotificationServiceImpl implements NotificationService {
                 .type(requestDto.getType())
                 .subject(requestDto.getSubject())
                 .message(requestDto.getMessage())
-                .status(NotificationStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .status(NotificationStatus.PENDING)
                 .build();
 
-        Notification saved = notificationRepository.save(notification);
+        try {
+            sendNotification(
+                    requestDto.getType(),
+                    requestDto.getRecipient(),
+                    requestDto.getSubject(),
+                    requestDto.getMessage()
+            );
 
-        log.info("Notification saved and marked SENT. notificationId={}", saved.getNotificationId());
+            notification.setStatus(NotificationStatus.SENT);
+            notification.setSentAt(LocalDateTime.now());
+
+            log.info("Notification sent successfully for userId={}", requestDto.getUserId());
+        } catch (Exception ex) {
+            notification.setStatus(NotificationStatus.FAILED);
+            log.error("Failed to send notification for userId={}: {}",
+                    requestDto.getUserId(), ex.getMessage(), ex);
+        }
+
+        Notification saved = notificationRepository.save(notification);
+        log.info("Notification saved. notificationId={}, status={}",
+                saved.getNotificationId(), saved.getStatus());
 
         return mapToResponse(saved);
     }
@@ -46,19 +72,38 @@ public class NotificationServiceImpl implements NotificationService {
     public NotificationResponseDto processNotificationEvent(NotificationEventDto eventDto) {
         log.info("Processing RabbitMQ notification event for userId={}", eventDto.getUserId());
 
+        NotificationType notificationType = NotificationType.valueOf(eventDto.getType().toUpperCase());
+
         Notification notification = Notification.builder()
                 .userId(eventDto.getUserId())
                 .recipient(eventDto.getRecipient())
-                .type(NotificationType.valueOf(eventDto.getType()))
+                .type(notificationType)
                 .subject(eventDto.getSubject())
                 .message(eventDto.getMessage())
-                .status(NotificationStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .status(NotificationStatus.PENDING)
                 .build();
 
-        Notification saved = notificationRepository.save(notification);
+        try {
+            sendNotification(
+                    notificationType,
+                    eventDto.getRecipient(),
+                    eventDto.getSubject(),
+                    eventDto.getMessage()
+            );
 
-        log.info("Notification event processed successfully. notificationId={}", saved.getNotificationId());
+            notification.setStatus(NotificationStatus.SENT);
+            notification.setSentAt(LocalDateTime.now());
+
+            log.info("Notification event processed successfully for userId={}", eventDto.getUserId());
+        } catch (Exception ex) {
+            notification.setStatus(NotificationStatus.FAILED);
+            log.error("Failed to process notification event for userId={}: {}",
+                    eventDto.getUserId(), ex.getMessage(), ex);
+        }
+
+        Notification saved = notificationRepository.save(notification);
+        log.info("Notification event saved. notificationId={}, status={}",
+                saved.getNotificationId(), saved.getStatus());
 
         return mapToResponse(saved);
     }
@@ -66,7 +111,8 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public NotificationResponseDto getNotificationById(Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + notificationId));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Notification not found with id: " + notificationId));
 
         return mapToResponse(notification);
     }
@@ -85,6 +131,15 @@ public class NotificationServiceImpl implements NotificationService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    private void sendNotification(NotificationType type, String recipient, String subject, String message) {
+        if (type == NotificationType.EMAIL) {
+            log.info("Sending EMAIL notification to {}", recipient);
+            emailService.sendEmail(recipient, subject, message);
+        } else {
+            throw new IllegalArgumentException("Only EMAIL notification is supported currently: " + type);
+        }
     }
 
     private NotificationResponseDto mapToResponse(Notification notification) {

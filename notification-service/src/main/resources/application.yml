@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: NOTIFICATION-SERVICE
+    name: notification-service
 
   datasource:
     url: jdbc:mysql://localhost:3306/notification_db
@@ -14,7 +14,6 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-    open-in-view: false
 
   rabbitmq:
     host: localhost
@@ -22,15 +21,19 @@ spring:
     username: guest
     password: guest
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
-  instance:
-    prefer-ip-address: true
-
-logging:
-  file:
-    name: logs/notification-service.log
-  level:
-    com.medibook.notification: DEBUG

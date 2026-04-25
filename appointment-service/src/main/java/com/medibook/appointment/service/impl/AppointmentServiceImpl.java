@@ -11,13 +11,14 @@ import com.medibook.appointment.service.AppointmentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-
 import java.time.LocalDate;
 import java.util.List;
 
 @Service
 @Slf4j
 public class AppointmentServiceImpl implements AppointmentService {
+
+    private static final String DEMO_PATIENT_EMAIL = "tanishapachpande0072@gmail.com";
 
     private final AppointmentRepository appointmentRepository;
     private final ScheduleClient scheduleClient;
@@ -70,16 +71,15 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment booked successfully with appointmentId={}", savedAppointment.getAppointmentId());
-        NotificationEventDto eventDto = NotificationEventDto.builder()
-                .userId(savedAppointment.getPatientId())
-                .recipient("patient@gmail.com")
-                .type("EMAIL")
-                .subject("Appointment Booked")
-                .message("Your appointment has been booked successfully for "
-                        + savedAppointment.getAppointmentDate() + " at " + savedAppointment.getStartTime())
-                .build();
 
-        notificationProducer.publishNotification(eventDto);
+        publishEmailNotification(
+                savedAppointment.getPatientId(),
+                DEMO_PATIENT_EMAIL,
+                "Appointment Booked",
+                "Your appointment has been booked successfully for "
+                        + savedAppointment.getAppointmentDate() + " at " + savedAppointment.getStartTime()
+        );
+
         return mapToResponse(savedAppointment);
     }
 
@@ -150,15 +150,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment saved = appointmentRepository.save(appointment);
 
         scheduleClient.unblockSlot(appointment.getSlotId());
-        NotificationEventDto eventDto = NotificationEventDto.builder()
-                .userId(saved.getPatientId())
-                .recipient("patient@gmail.com")
-                .type("EMAIL")
-                .subject("Appointment Cancelled")
-                .message("Your appointment with id " + saved.getAppointmentId() + " has been cancelled.")
-                .build();
 
-        notificationProducer.publishNotification(eventDto);
+        publishEmailNotification(
+                saved.getPatientId(),
+                DEMO_PATIENT_EMAIL,
+                "Appointment Cancelled",
+                "Your appointment with id " + saved.getAppointmentId() + " has been cancelled."
+        );
+
         log.info("Appointment cancelled successfully for appointmentId={}", appointmentId);
         return mapToResponse(saved);
     }
@@ -201,16 +200,15 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Appointment rescheduled successfully for appointmentId={}", appointmentId);
-        NotificationEventDto eventDto = NotificationEventDto.builder()
-                .userId(saved.getPatientId())
-                .recipient("patient@gmail.com")
-                .type("EMAIL")
-                .subject("Appointment Rescheduled")
-                .message("Your appointment has been rescheduled to "
-                        + saved.getAppointmentDate() + " at " + saved.getStartTime())
-                .build();
 
-        notificationProducer.publishNotification(eventDto);
+        publishEmailNotification(
+                saved.getPatientId(),
+                DEMO_PATIENT_EMAIL,
+                "Appointment Rescheduled",
+                "Your appointment has been rescheduled to "
+                        + saved.getAppointmentDate() + " at " + saved.getStartTime()
+        );
+
         return mapToResponse(saved);
     }
 
@@ -267,6 +265,19 @@ public class AppointmentServiceImpl implements AppointmentService {
     public Long getAppointmentCount(Long providerId) {
         log.info("Fetching appointment count for providerId={}", providerId);
         return appointmentRepository.countByProviderId(providerId);
+    }
+
+    private void publishEmailNotification(Long userId, String recipient, String subject, String message) {
+        NotificationEventDto eventDto = NotificationEventDto.builder()
+                .userId(userId)
+                .recipient(recipient)
+                .type("EMAIL")
+                .subject(subject)
+                .message(message)
+                .build();
+
+        notificationProducer.publishNotification(eventDto);
+        log.info("Notification event published for userId={} with subject={}", userId, subject);
     }
 
     private AppointmentResponseDto mapToResponse(Appointment appointment) {

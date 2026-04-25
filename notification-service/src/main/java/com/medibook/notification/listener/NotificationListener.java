@@ -1,6 +1,8 @@
 package com.medibook.notification.listener;
 
-import com.medibook.notification.dto.NotificationMessage;
+import com.medibook.notification.config.RabbitMqConfig;
+import com.medibook.notification.dto.NotificationEventDto;
+import com.medibook.notification.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -9,13 +11,18 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class NotificationListener {
 
-    @RabbitListener(queues = "notification.queue")
-    public void consume(NotificationMessage message) {
-        log.info("Received notification for userId={} email={}",
-                message.getUserId(), message.getEmail());
+    private final NotificationService notificationService;
 
-        log.info("Message: {}", message.getMessage());
+    public NotificationListener(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
 
-        // Later: send email
+    @RabbitListener(queues = RabbitMqConfig.QUEUE)
+    public void handleNotification(NotificationEventDto eventDto) {
+        log.info("Received notification for userId={} recipient={}",
+                eventDto.getUserId(), eventDto.getRecipient());
+        log.info("Message: {}", eventDto.getMessage());
+
+        notificationService.processNotificationEvent(eventDto);
     }
 }
