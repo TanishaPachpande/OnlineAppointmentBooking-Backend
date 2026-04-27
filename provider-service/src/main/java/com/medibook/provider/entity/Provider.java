@@ -18,6 +18,9 @@ public class Provider {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long providerId;
 
+    @Column(length = 150)
+    private String fullName;
+
     @Column(nullable = false, unique = true)
     private Long userId;
 

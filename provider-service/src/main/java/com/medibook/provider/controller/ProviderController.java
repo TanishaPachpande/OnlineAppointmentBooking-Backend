@@ -72,4 +72,11 @@ public class ProviderController {
                                                             @RequestParam Double avgRating) {
         return ResponseEntity.ok(providerService.updateRating(providerId, avgRating));
     }
+
+    @PutMapping("/{providerId}")
+    public ResponseEntity<ProviderResponseDto> updateProvider(@PathVariable Long providerId,
+                                                              @Valid @RequestBody ProviderRequestDto requestDto) {
+        log.info("API CALL: Update Provider - {}", providerId);
+        return ResponseEntity.ok(providerService.updateProvider(providerId, requestDto));
+    }
 }

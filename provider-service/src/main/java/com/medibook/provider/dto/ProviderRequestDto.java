@@ -13,6 +13,8 @@ public class ProviderRequestDto {
     @NotNull(message = "User ID is required")
     private Long userId;
 
+    private String fullName;
+
     @NotBlank(message = "Specialization is required")
     private String specialization;
 

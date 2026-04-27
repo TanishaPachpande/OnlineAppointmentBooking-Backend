@@ -2,6 +2,7 @@ package com.medibook.provider.service;
 
 import com.medibook.provider.dto.ProviderRequestDto;
 import com.medibook.provider.dto.ProviderResponseDto;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -24,4 +25,6 @@ public interface ProviderService {
     ProviderResponseDto updateAvailability(Long providerId, Boolean available);
 
     ProviderResponseDto updateRating(Long providerId, Double avgRating);
+
+    ProviderResponseDto updateProvider(Long providerId, ProviderRequestDto requestDto);
 }

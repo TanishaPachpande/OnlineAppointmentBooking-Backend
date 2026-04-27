@@ -2,22 +2,20 @@ package com.medibook.api_gateway.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.GlobalFilter;
-import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 @Component
-public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
+public class JwtAuthenticationFilter implements WebFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-
     private final JwtUtil jwtUtil;
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil) {
@@ -25,37 +23,41 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
         HttpMethod method = exchange.getRequest().getMethod();
 
+        log.info("➡️ Incoming request: {} {}", method, path); // ✅ Log every request
+
         if (isPublicPath(path, method)) {
+            log.info("✅ Public path, skipping auth: {}", path);
             return chain.filter(exchange);
         }
 
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        log.info("🔑 Auth header: {}", authHeader != null ? "present" : "MISSING"); // ✅ Log header presence
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("Missing or invalid Authorization header for path={}", path);
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse().setComplete();
+            return onError(exchange, "Missing Authorization Header", HttpStatus.UNAUTHORIZED);
         }
 
         String token = authHeader.substring(7);
+        log.info("🔐 Token (first 20 chars): {}", token.substring(0, Math.min(20, token.length()))); // ✅ Log token
 
-        if (!jwtUtil.validateToken(token)) {
-            log.warn("Invalid JWT token for path={}", path);
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse().setComplete();
+        boolean isValid = jwtUtil.validateToken(token);
+        log.info("✔️ Token valid: {}", isValid); // ✅ Log validation result
+
+        if (!isValid) {
+            return onError(exchange, "Invalid JWT Token", HttpStatus.UNAUTHORIZED);
         }
 
         String email = jwtUtil.extractUsername(token);
         String role = jwtUtil.extractRole(token);
+        log.info("👤 Email: {}, Role: {}", email, role); // ✅ Log extracted claims
 
         if (!isAuthorized(path, method, role)) {
-            log.warn("Access denied for user={} role={} path={}", email, role, path);
-            exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
-            return exchange.getResponse().setComplete();
+            log.warn("🚫 Access denied for role: {} on path: {}", role, path);
+            return onError(exchange, "Access Denied for role: " + role, HttpStatus.FORBIDDEN);
         }
 
         ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
@@ -63,69 +65,39 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 .header("X-Authenticated-Role", role)
                 .build();
 
-        log.info("JWT validated. user={} role={} path={}", email, role, path);
-
+        log.info("✅ Forwarding request to downstream: {} {}", method, path);
         return chain.filter(exchange.mutate().request(mutatedRequest).build());
+    }
+
+    private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
+        log.warn("❌ Auth Error: {} | Path: {}", err, exchange.getRequest().getURI().getPath());
+        exchange.getResponse().setStatusCode(status);
+        return exchange.getResponse().setComplete();
     }
 
     private boolean isPublicPath(String path, HttpMethod method) {
         return path.startsWith("/auth/register")
                 || path.startsWith("/auth/login")
-                || path.startsWith("/auth/test")
                 || (path.startsWith("/providers") && method == HttpMethod.GET)
-                || path.startsWith("/slots/available")
-                || path.startsWith("/v3/api-docs")
-                || path.startsWith("/swagger-ui")
-                || path.startsWith("/swagger-ui.html");
+                || path.startsWith("/v3/api-docs");
     }
 
     private boolean isAuthorized(String path, HttpMethod method, String role) {
-        if (role == null) {
-            return false;
-        }
-
-        // ADMIN: full access
-        if ("ADMIN".equals(role)) {
-            return true;
-        }
-
-        // PROVIDER rules
-        if ("PROVIDER".equals(role)) {
-            return isProviderAllowed(path, method);
-        }
-
-        // PATIENT rules
-        if ("PATIENT".equals(role)) {
-            return isPatientAllowed(path, method);
-        }
-
+        if (role == null) return false;
+        if ("ADMIN".equals(role)) return true;
+        if ("PROVIDER".equals(role)) return isProviderAllowed(path, method);
+        if ("PATIENT".equals(role)) return isPatientAllowed(path, method);
         return false;
     }
 
     private boolean isProviderAllowed(String path, HttpMethod method) {
-        return path.startsWith("/auth/profile")
-                || path.startsWith("/providers/user")
+        return path.startsWith("/providers")
                 || path.startsWith("/slots")
-                || path.startsWith("/appointments/provider")
-                || path.startsWith("/appointments/")
-                || path.startsWith("/payments")
-                || path.startsWith("/notifications")
-                || path.startsWith("/records");
+                || path.startsWith("/appointments/provider");
     }
 
     private boolean isPatientAllowed(String path, HttpMethod method) {
-        return path.startsWith("/auth/profile")
-                || (path.startsWith("/providers") && method == HttpMethod.GET)
-                || path.startsWith("/slots/available")
-                || path.startsWith("/appointments")
-                || path.startsWith("/payments")
-                || path.startsWith("/reviews")
-                || path.startsWith("/notifications")
-                || (path.startsWith("/records") && method == HttpMethod.GET);
-    }
-
-    @Override
-    public int getOrder() {
-        return -1;
+        return (path.startsWith("/providers") && method == HttpMethod.GET)
+                || path.startsWith("/appointments");
     }
 }

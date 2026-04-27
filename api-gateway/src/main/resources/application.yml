@@ -49,3 +49,4 @@ eureka:
 app:
   jwt:
     secret: ThisIsAVeryStrongSecretKeyForJwtTokenGeneration123456
+

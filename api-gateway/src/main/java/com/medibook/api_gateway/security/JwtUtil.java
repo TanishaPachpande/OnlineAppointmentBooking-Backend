@@ -25,6 +25,7 @@ public class JwtUtil {
                     .parseSignedClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException ex) {
+            System.out.println("❌ JWT validation failed: " + ex.getMessage()); // ADD THIS
             return false;
         }
     }

@@ -33,6 +33,7 @@ public class ProviderServiceImpl implements ProviderService {
 
         Provider provider = Provider.builder()
                 .userId(requestDto.getUserId())
+                .fullName(requestDto.getFullName())
                 .specialization(requestDto.getSpecialization())
                 .qualification(requestDto.getQualification())
                 .experienceYears(requestDto.getExperienceYears())
@@ -75,6 +76,26 @@ public class ProviderServiceImpl implements ProviderService {
     }
 
     @Override
+    public ProviderResponseDto updateProvider(Long providerId, ProviderRequestDto requestDto) {
+        log.info("Update provider request received for providerId: {}", providerId);
+
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Provider not found with id: " + providerId));
+
+        provider.setSpecialization(requestDto.getSpecialization());
+        provider.setQualification(requestDto.getQualification());
+        provider.setExperienceYears(requestDto.getExperienceYears());
+        provider.setBio(requestDto.getBio());
+        provider.setClinicName(requestDto.getClinicName());
+        provider.setClinicAddress(requestDto.getClinicAddress());
+
+        Provider updatedProvider = providerRepository.save(provider);
+        log.info("Provider updated successfully with providerId: {}", updatedProvider.getProviderId());
+
+        return mapToResponse(updatedProvider);
+    }
+
+    @Override
     public List<ProviderResponseDto> searchProviders(String keyword) {
         return providerRepository
                 .findByClinicNameContainingIgnoreCaseOrSpecializationContainingIgnoreCase(keyword, keyword)
@@ -114,6 +135,7 @@ public class ProviderServiceImpl implements ProviderService {
         return ProviderResponseDto.builder()
                 .providerId(provider.getProviderId())
                 .userId(provider.getUserId())
+                .fullName(provider.getFullName())
                 .specialization(provider.getSpecialization())
                 .qualification(provider.getQualification())
                 .experienceYears(provider.getExperienceYears())

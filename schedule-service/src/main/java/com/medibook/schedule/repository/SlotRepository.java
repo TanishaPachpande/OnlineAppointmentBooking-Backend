@@ -2,11 +2,14 @@ package com.medibook.schedule.repository;
 
 import com.medibook.schedule.entity.AvailabilitySlot;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import java.time.LocalTime;
 import java.time.LocalDate;
 import java.util.List;
 
 public interface SlotRepository extends JpaRepository<AvailabilitySlot, Long> {
+
+    // Used to prevent creating the same slot twice
+    boolean existsByProviderIdAndDateAndStartTime(Long providerId, LocalDate date, LocalTime startTime);
 
     List<AvailabilitySlot> findByProviderId(Long providerId);
 

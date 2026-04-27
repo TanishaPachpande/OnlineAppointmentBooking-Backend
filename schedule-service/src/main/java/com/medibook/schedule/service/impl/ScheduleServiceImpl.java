@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +29,16 @@ public class ScheduleServiceImpl implements ScheduleService {
     public SlotResponseDto addSlot(SlotRequestDto requestDto) {
         validateSlotTime(requestDto);
 
+        if (requestDto.getDate().isBefore(LocalDate.now())) {
+            throw new InvalidSlotException("Cannot create slots for past dates.");
+        }
+
+        // Check for duplicates before saving
+        if (slotRepository.existsByProviderIdAndDateAndStartTime(
+                requestDto.getProviderId(), requestDto.getDate(), requestDto.getStartTime())) {
+            throw new InvalidSlotException("A slot already exists for this time and date.");
+        }
+
         log.info("Adding slot for providerId={} on date={}", requestDto.getProviderId(), requestDto.getDate());
 
         AvailabilitySlot slot = AvailabilitySlot.builder()
@@ -37,18 +48,15 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .endTime(requestDto.getEndTime())
                 .durationMinutes(requestDto.getDurationMinutes())
                 .recurrence(RecurrenceType.NONE)
+                .isBooked(false)
+                .isBlocked(false)
                 .build();
 
-        AvailabilitySlot savedSlot = slotRepository.save(slot);
-        log.info("Slot added successfully with slotId={}", savedSlot.getSlotId());
-
-        return mapToResponse(savedSlot);
+        return mapToResponse(slotRepository.save(slot));
     }
 
     @Override
     public List<SlotResponseDto> addBulkSlots(BulkSlotRequestDto requestDto) {
-        log.info("Adding bulk slots. Count={}", requestDto.getSlots().size());
-
         List<SlotResponseDto> responseList = new ArrayList<>();
         for (SlotRequestDto slotRequestDto : requestDto.getSlots()) {
             responseList.add(addSlot(slotRequestDto));
@@ -58,33 +66,39 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public List<SlotResponseDto> generateRecurringSlots(RecurringSlotRequestDto requestDto) {
-        log.info("Generating recurring slots for providerId={} from {} to {}",
-                requestDto.getProviderId(), requestDto.getStartDate(), requestDto.getEndDate());
-
         if (requestDto.getEndDate().isBefore(requestDto.getStartDate())) {
             throw new InvalidSlotException("End date cannot be before start date");
-        }
-
-        if (requestDto.getEndTime().isBefore(requestDto.getStartTime())
-                || requestDto.getEndTime().equals(requestDto.getStartTime())) {
-            throw new InvalidSlotException("End time must be after start time");
         }
 
         List<SlotResponseDto> responseList = new ArrayList<>();
         LocalDate currentDate = requestDto.getStartDate();
 
         while (!currentDate.isAfter(requestDto.getEndDate())) {
-            AvailabilitySlot slot = AvailabilitySlot.builder()
-                    .providerId(requestDto.getProviderId())
-                    .date(currentDate)
-                    .startTime(requestDto.getStartTime())
-                    .endTime(requestDto.getEndTime())
-                    .durationMinutes(requestDto.getDurationMinutes())
-                    .recurrence(requestDto.getRecurrenceType())
-                    .build();
+            LocalTime slotStartTime = requestDto.getStartTime();
 
-            AvailabilitySlot saved = slotRepository.save(slot);
-            responseList.add(mapToResponse(saved));
+            while (slotStartTime.plusMinutes(requestDto.getDurationMinutes()).isBefore(requestDto.getEndTime())
+                    || slotStartTime.plusMinutes(requestDto.getDurationMinutes()).equals(requestDto.getEndTime())) {
+
+                LocalTime slotEndTime = slotStartTime.plusMinutes(requestDto.getDurationMinutes());
+
+                // Skip generation if slot already exists to prevent partial failure
+                if (!slotRepository.existsByProviderIdAndDateAndStartTime(requestDto.getProviderId(), currentDate, slotStartTime)) {
+                    AvailabilitySlot slot = AvailabilitySlot.builder()
+                            .providerId(requestDto.getProviderId())
+                            .date(currentDate)
+                            .startTime(slotStartTime)
+                            .endTime(slotEndTime)
+                            .durationMinutes(requestDto.getDurationMinutes())
+                            .recurrence(requestDto.getRecurrenceType())
+                            .isBooked(false)
+                            .isBlocked(false)
+                            .build();
+
+                    responseList.add(mapToResponse(slotRepository.save(slot)));
+                }
+
+                slotStartTime = slotEndTime;
+            }
 
             if (requestDto.getRecurrenceType() == RecurrenceType.DAILY) {
                 currentDate = currentDate.plusDays(1);
@@ -94,33 +108,23 @@ public class ScheduleServiceImpl implements ScheduleService {
                 break;
             }
         }
-
-        log.info("Generated {} recurring slots", responseList.size());
         return responseList;
     }
 
     @Override
     public List<SlotResponseDto> getSlotsByProvider(Long providerId) {
-        return slotRepository.findByProviderId(providerId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return slotRepository.findByProviderId(providerId).stream().map(this::mapToResponse).toList();
     }
 
     @Override
     public List<SlotResponseDto> getSlotsByProviderAndDate(Long providerId, LocalDate date) {
-        return slotRepository.findByProviderIdAndDate(providerId, date)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return slotRepository.findByProviderIdAndDate(providerId, date).stream().map(this::mapToResponse).toList();
     }
 
     @Override
     public List<SlotResponseDto> getAvailableSlots(Long providerId, LocalDate date) {
         return slotRepository.findByProviderIdAndDateAndIsBookedFalseAndIsBlockedFalse(providerId, date)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+                .stream().map(this::mapToResponse).toList();
     }
 
     @Override
@@ -133,14 +137,10 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public SlotResponseDto bookSlot(Long slotId) {
         AvailabilitySlot slot = slotRepository.findById(slotId)
-                .orElseThrow(() -> new ResourceNotFoundException("Slot not found with id: " + slotId));
+                .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
 
-        if (Boolean.TRUE.equals(slot.getIsBlocked())) {
-            throw new InvalidSlotException("Blocked slot cannot be booked");
-        }
-
-        if (Boolean.TRUE.equals(slot.getIsBooked())) {
-            throw new InvalidSlotException("Slot is already booked");
+        if (Boolean.TRUE.equals(slot.getIsBlocked()) || Boolean.TRUE.equals(slot.getIsBooked())) {
+            throw new InvalidSlotException("Slot is not available for booking");
         }
 
         slot.setIsBooked(true);
@@ -150,8 +150,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public SlotResponseDto unblockSlot(Long slotId) {
         AvailabilitySlot slot = slotRepository.findById(slotId)
-                .orElseThrow(() -> new ResourceNotFoundException("Slot not found with id: " + slotId));
-
+                .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
         slot.setIsBlocked(false);
         return mapToResponse(slotRepository.save(slot));
     }
@@ -159,10 +158,10 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public SlotResponseDto blockSlot(Long slotId) {
         AvailabilitySlot slot = slotRepository.findById(slotId)
-                .orElseThrow(() -> new ResourceNotFoundException("Slot not found with id: " + slotId));
+                .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
 
         if (Boolean.TRUE.equals(slot.getIsBooked())) {
-            throw new InvalidSlotException("Booked slot cannot be blocked");
+            throw new InvalidSlotException("Cannot block a slot that is already booked");
         }
 
         slot.setIsBlocked(true);
@@ -172,15 +171,13 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public SlotResponseDto updateSlot(Long slotId, SlotRequestDto requestDto) {
         validateSlotTime(requestDto);
-
         AvailabilitySlot slot = slotRepository.findById(slotId)
-                .orElseThrow(() -> new ResourceNotFoundException("Slot not found with id: " + slotId));
+                .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
 
         if (Boolean.TRUE.equals(slot.getIsBooked())) {
-            throw new InvalidSlotException("Booked slot cannot be updated");
+            throw new InvalidSlotException("Booked slots cannot be modified");
         }
 
-        slot.setProviderId(requestDto.getProviderId());
         slot.setDate(requestDto.getDate());
         slot.setStartTime(requestDto.getStartTime());
         slot.setEndTime(requestDto.getEndTime());
@@ -192,15 +189,18 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public String deleteSlot(Long slotId) {
         AvailabilitySlot slot = slotRepository.findById(slotId)
-                .orElseThrow(() -> new ResourceNotFoundException("Slot not found with id: " + slotId));
+                .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
+
+        if (Boolean.TRUE.equals(slot.getIsBooked())) {
+            throw new InvalidSlotException("Cannot delete a booked slot. Please cancel the appointment first.");
+        }
 
         slotRepository.delete(slot);
         return "Slot deleted successfully";
     }
 
     private void validateSlotTime(SlotRequestDto requestDto) {
-        if (requestDto.getEndTime().isBefore(requestDto.getStartTime())
-                || requestDto.getEndTime().equals(requestDto.getStartTime())) {
+        if (!requestDto.getEndTime().isAfter(requestDto.getStartTime())) {
             throw new InvalidSlotException("End time must be after start time");
         }
     }
