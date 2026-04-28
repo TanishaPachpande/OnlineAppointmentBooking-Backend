@@ -213,7 +213,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         scheduleClient.bookSlot(requestDto.getNewSlotId());
-        scheduleClient.unblockSlot(appointment.getSlotId());
+        scheduleClient.unbookSlot(appointment.getSlotId());
 
         appointment.setSlotId(requestDto.getNewSlotId());
         appointment.setAppointmentDate(newSlot.getDate());
@@ -260,7 +260,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointment.setStatus(AppointmentStatus.COMPLETED);
         Appointment saved = appointmentRepository.save(appointment);
-        scheduleClient.unblockSlot(appointment.getSlotId());
+        scheduleClient.unbookSlot(appointment.getSlotId());
         log.info("Appointment completed successfully for appointmentId={}", appointmentId);
         return mapToResponse(saved);
     }
