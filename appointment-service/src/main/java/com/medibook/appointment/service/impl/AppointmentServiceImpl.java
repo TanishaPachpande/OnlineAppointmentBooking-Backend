@@ -161,8 +161,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setStatus(AppointmentStatus.CANCELLED);
         Appointment saved = appointmentRepository.save(appointment);
 
-        scheduleClient.unblockSlot(appointment.getSlotId());
 
+        scheduleClient.unbookSlot(appointment.getSlotId());
         publishEmailNotification(
                 saved.getPatientId(),
                 DEMO_PATIENT_EMAIL,

@@ -79,6 +79,11 @@ public class ScheduleController {
         return ResponseEntity.ok(scheduleService.unblockSlot(slotId));
     }
 
+    @PutMapping("/{slotId}/unbook")
+    public ResponseEntity<SlotResponseDto> unbookSlot(@PathVariable Long slotId) {
+        return ResponseEntity.ok(scheduleService.unbookSlot(slotId));
+    }
+
     @PutMapping("/{slotId}")
     public ResponseEntity<SlotResponseDto> updateSlot(@PathVariable Long slotId,
                                                       @Valid @RequestBody SlotRequestDto requestDto) {

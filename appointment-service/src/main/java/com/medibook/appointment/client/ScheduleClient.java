@@ -15,4 +15,7 @@ public interface ScheduleClient {
 
     @PutMapping("/slots/{slotId}/unblock")
     void unblockSlot(@PathVariable("slotId") Long slotId);
+
+    @PutMapping("/slots/{slotId}/unbook")
+    void unbookSlot(@PathVariable("slotId") Long slotId);
 }

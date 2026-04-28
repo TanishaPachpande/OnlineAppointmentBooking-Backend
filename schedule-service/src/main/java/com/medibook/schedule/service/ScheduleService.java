@@ -30,4 +30,6 @@ public interface ScheduleService {
     SlotResponseDto updateSlot(Long slotId, SlotRequestDto requestDto);
 
     String deleteSlot(Long slotId);
+
+    SlotResponseDto unbookSlot(Long slotId);
 }

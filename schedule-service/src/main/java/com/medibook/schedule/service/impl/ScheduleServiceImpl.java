@@ -157,6 +157,14 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    public SlotResponseDto unbookSlot(Long slotId) {
+        AvailabilitySlot slot = slotRepository.findById(slotId)
+                .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
+        slot.setIsBooked(false);
+        return mapToResponse(slotRepository.save(slot));
+    }
+
+    @Override
     public SlotResponseDto blockSlot(Long slotId) {
         AvailabilitySlot slot = slotRepository.findById(slotId)
                 .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
