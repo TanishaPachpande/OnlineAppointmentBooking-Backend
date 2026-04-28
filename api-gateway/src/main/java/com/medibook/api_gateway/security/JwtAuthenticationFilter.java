@@ -93,11 +93,19 @@ public class JwtAuthenticationFilter implements WebFilter {
     private boolean isProviderAllowed(String path, HttpMethod method) {
         return path.startsWith("/providers")
                 || path.startsWith("/slots")
-                || path.startsWith("/appointments/provider");
+                || path.startsWith("/appointments")
+                || path.startsWith("/notifications")
+                || path.startsWith("/reviews")
+                || path.startsWith("/records");
     }
 
     private boolean isPatientAllowed(String path, HttpMethod method) {
         return (path.startsWith("/providers") && method == HttpMethod.GET)
-                || path.startsWith("/appointments");
+                || (path.startsWith("/slots") && method == HttpMethod.GET)
+                || path.startsWith("/appointments")
+                || path.startsWith("/notifications")
+                || path.startsWith("/records")
+                || path.startsWith("/payments")
+                || path.startsWith("/reviews");
     }
 }

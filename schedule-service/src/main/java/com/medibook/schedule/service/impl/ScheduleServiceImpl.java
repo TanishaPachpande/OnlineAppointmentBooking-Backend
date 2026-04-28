@@ -152,6 +152,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         AvailabilitySlot slot = slotRepository.findById(slotId)
                 .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
         slot.setIsBlocked(false);
+        slot.setIsBooked(false);
         return mapToResponse(slotRepository.save(slot));
     }
 

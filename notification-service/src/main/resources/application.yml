@@ -37,3 +37,7 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+logging:
+  file:
+    name: logs/notification-service.log

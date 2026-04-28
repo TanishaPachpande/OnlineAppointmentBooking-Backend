@@ -33,4 +33,5 @@ public class ProviderRequestDto {
 
     @NotBlank(message = "Clinic address is required")
     private String clinicAddress;
+
 }

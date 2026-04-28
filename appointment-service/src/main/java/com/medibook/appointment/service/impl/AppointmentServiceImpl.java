@@ -19,6 +19,7 @@ import java.util.List;
 public class AppointmentServiceImpl implements AppointmentService {
 
     private static final String DEMO_PATIENT_EMAIL = "tanishapachpande0072@gmail.com";
+    private static final String DEMO_PROVIDER_EMAIL = "tanishapachpande86@gmail.com";
 
     private final AppointmentRepository appointmentRepository;
     private final ScheduleClient scheduleClient;
@@ -78,6 +79,17 @@ public class AppointmentServiceImpl implements AppointmentService {
                 "Appointment Booked",
                 "Your appointment has been booked successfully for "
                         + savedAppointment.getAppointmentDate() + " at " + savedAppointment.getStartTime()
+        );
+
+        publishEmailNotification(
+                savedAppointment.getProviderId(),
+                DEMO_PROVIDER_EMAIL,
+                "New Appointment Booked",
+                "A new appointment has been booked.\n" +
+                        "Date: " + savedAppointment.getAppointmentDate() + "\n" +
+                        "Time: " + savedAppointment.getStartTime() + " - " + savedAppointment.getEndTime() + "\n" +
+                        "Service: " + savedAppointment.getServiceType() + "\n" +
+                        "Mode: " + savedAppointment.getModeOfConsultation()
         );
 
         return mapToResponse(savedAppointment);
@@ -158,6 +170,16 @@ public class AppointmentServiceImpl implements AppointmentService {
                 "Your appointment with id " + saved.getAppointmentId() + " has been cancelled."
         );
 
+        publishEmailNotification(
+                saved.getProviderId(),
+                DEMO_PROVIDER_EMAIL,
+                "Appointment Cancelled",
+                "Appointment #" + saved.getAppointmentId() +
+                        " scheduled for " + saved.getAppointmentDate() +
+                        " at " + saved.getStartTime() +
+                        " has been cancelled by the patient."
+        );
+
         log.info("Appointment cancelled successfully for appointmentId={}", appointmentId);
         return mapToResponse(saved);
     }
@@ -209,6 +231,15 @@ public class AppointmentServiceImpl implements AppointmentService {
                         + saved.getAppointmentDate() + " at " + saved.getStartTime()
         );
 
+        publishEmailNotification(
+                saved.getProviderId(),
+                DEMO_PROVIDER_EMAIL,
+                "Appointment Rescheduled",
+                "Appointment #" + saved.getAppointmentId() +
+                        " has been rescheduled to " + saved.getAppointmentDate() +
+                        " at " + saved.getStartTime() + "."
+        );
+
         return mapToResponse(saved);
     }
 
@@ -229,7 +260,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointment.setStatus(AppointmentStatus.COMPLETED);
         Appointment saved = appointmentRepository.save(appointment);
-
+        scheduleClient.unblockSlot(appointment.getSlotId());
         log.info("Appointment completed successfully for appointmentId={}", appointmentId);
         return mapToResponse(saved);
     }
