@@ -10,6 +10,7 @@ import com.medibook.appointment.repository.AppointmentRepository;
 import com.medibook.appointment.service.AppointmentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -139,6 +140,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional
     public AppointmentResponseDto cancelAppointment(Long appointmentId) {
         log.info("Cancelling appointmentId={}", appointmentId);
 
@@ -158,11 +160,12 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new BusinessException("Completed appointment cannot be cancelled");
         }
 
+        // Unbook the slot FIRST so it becomes immediately available for other patients
+        scheduleClient.unbookSlot(appointment.getSlotId());
+        log.info("Slot {} successfully unbooked after cancellation of appointmentId={}", appointment.getSlotId(), appointmentId);
+
         appointment.setStatus(AppointmentStatus.CANCELLED);
         Appointment saved = appointmentRepository.save(appointment);
-
-
-        scheduleClient.unbookSlot(appointment.getSlotId());
         publishEmailNotification(
                 saved.getPatientId(),
                 DEMO_PATIENT_EMAIL,
