@@ -1,0 +1,30 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: SCHEDULE-SERVICE
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/schedule_db
+    username: root
+    password: mysql@123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+logging:
+  file:
+    name: logs/schedule-service.log
+  level:
+    com.medibook.schedule: DEBUG

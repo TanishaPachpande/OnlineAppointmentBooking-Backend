@@ -1,0 +1,41 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: PAYMENT-SERVICE
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/payment_db
+    username: root
+    password: mysql@123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
+  currency: INR
+
+logging:
+  file:
+    name: logs/payment-service.log
+  level:
+    com.medibook.payment: DEBUG
+

@@ -1,0 +1,52 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: API-GATEWAY
+
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/**
+        - id: provider-service
+          uri: lb://PROVIDER-SERVICE
+          predicates:
+            - Path=/providers/**
+        - id: schedule-service
+          uri: lb://SCHEDULE-SERVICE
+          predicates:
+            - Path=/slots/**
+        - id: appointment-service
+          uri: lb://APPOINTMENT-SERVICE
+          predicates:
+            - Path=/appointments/**
+        - id: payment-service
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/payments/**
+        - id: review-service
+          uri: lb://REVIEW-SERVICE
+          predicates:
+            - Path=/reviews/**
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/notifications/**
+        - id: record-service
+          uri: lb://RECORD-SERVICE
+          predicates:
+            - Path=/records/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:ThisIsAVeryStrongSecretKeyForJwtTokenGeneration123456}
+

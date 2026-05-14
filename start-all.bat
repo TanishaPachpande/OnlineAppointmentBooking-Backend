@@ -1,0 +1,11 @@
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\eureka-server && mvn spring-boot:run"
+timeout /t 20
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\api-gateway && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\auth-service && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\provider-service && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\appointment-service && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\schedule-service && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\record-service && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\payment-service && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\notification-service && mvn spring-boot:run"
+start cmd /k "cd D:\SpringBootProject\OnlineAppointmentBooking\review-service && mvn spring-boot:run"

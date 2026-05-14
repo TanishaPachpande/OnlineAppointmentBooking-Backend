@@ -1,0 +1,110 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: AUTH-SERVICE
+
+  # ──────────────────── Database  ────────────────────
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/auth_db}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:mysql@123}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
+  # ──────────────────── Redis  ────────────────────
+  # For: OTP storage (5-min TTL) + JWT token cache on login
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # ──────────────────── RabbitMQ  ────────────────────
+  # Reuses the same broker already used by appointment-service
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+  # ──────────────────── Mail  ────────────────────
+  # Used only in auth-service to send OTP directly via SMTP
+  # (The notification-service email path is kept for appointment events)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: tanishapachpande0072@gmail.com
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  # ──────────────────── OAuth2 ────────────────────
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+            redirect-uri: "http://localhost:8082/login/oauth2/code/google"
+
+
+# ──────────────────── Eureka  ────────────────────
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# ──────────────────── JWT ────────────────────
+app:
+  jwt:
+    secret: ${JWT_SECRET:ThisIsAVeryStrongSecretKeyForJwtTokenGeneration123456}
+    expiration: 86400000
+
+  # ──────────────────── OAuth2 frontend redirect ────────────────────
+  # After Google login succeeds, backend redirects browser here with ?token=...
+  # This MUST match what OAuth2SuccessHandler uses.
+  oauth2:
+    redirect-uri: http://localhost:5173/oauth2/callback
+
+  # ──────────────────── OTP  ────────────────────
+  otp:
+    expiry-minutes: 5      # OTP valid for 5 minutes
+    length: 6              # 6-digit OTP
+
+  # ──────────────────── Redis TTL  ────────────────────
+  redis:
+    token-ttl-hours: 24    # Cached JWT TTL matches JWT expiry
+    otp-ttl-minutes: 5
+
+logging:
+  file:
+    name: logs/auth-service.log
+  level:
+    org.springframework.security: INFO
+    com.medibook.auth: DEBUG
+
+provider:
+  service:
+    url: http://localhost:8083

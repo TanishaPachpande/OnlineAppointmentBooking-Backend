@@ -1,0 +1,14 @@
+target/
+*.jar
+*.war
+*.class
+.idea/
+.settings/
+.classpath
+.project
+*.iml
+logs/
+*.log
+.metadata/
+.metadata
+*.metadata
