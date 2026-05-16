@@ -19,8 +19,10 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
 
     List<Provider> findByClinicAddressContainingIgnoreCase(String clinicAddress);
 
-    List<Provider> findByClinicNameContainingIgnoreCaseOrSpecializationContainingIgnoreCase(
-            String clinicName, String specialization
+
+    List<Provider> findByClinicNameContainingIgnoreCaseOrSpecializationContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+            String clinicName, String specialization, String fullName
+
     );
 
     /** Returns all providers still awaiting admin review */

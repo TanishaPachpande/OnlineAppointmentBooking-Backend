@@ -120,7 +120,8 @@ public class ProviderServiceImpl implements ProviderService {
     @Override
     public List<ProviderResponseDto> searchProviders(String keyword) {
         return providerRepository
-                .findByClinicNameContainingIgnoreCaseOrSpecializationContainingIgnoreCase(keyword, keyword)
+
+                .findByClinicNameContainingIgnoreCaseOrSpecializationContainingIgnoreCaseOrFullNameContainingIgnoreCase(keyword, keyword, keyword)   // ← added third argument
                 .stream()
                 .map(this::mapToResponse)
                 .toList();

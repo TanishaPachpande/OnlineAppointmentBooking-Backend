@@ -39,7 +39,10 @@ public class ProviderRequestDto {
      * E.g. medical registration certificate, degree scan uploaded to cloud storage.
      * Required for new registrations so admin can verify credentials.
      */
+<<<<<<< HEAD
+=======
     @NotBlank(message = "Verification document URL is required")
+>>>>>>> e8ac885935c809584e90d0a404290498cf91f096
     private String verificationDocumentUrl;
 
     // ── NEW: Profile photo URL (optional) ────────────────────────────────────
